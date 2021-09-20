@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import tabula as tb
 import tabula
 from PyPDF2 import PdfFileReader
@@ -26,8 +27,10 @@ def modifier(dffrompdf):
     dffrompdf = first_value
     return dffrompdf 
 
-paths_pdf = folder(r'C:\Users\adria\Desktop\Miratoni\Imports\September\10-09-21\Groupagem AM\Despachos')
+folder_path = r'C:\Users\adria\Desktop\Miratoni\Imports\June\11-06-21\Despachos'
 
+paths_pdf = folder(folder_path)
+codes_path = r"C:\Users\adria\Desktop\Miratoni\Imports\Import Database.csv"
 desc_areas = [[146.891,303.45,156.559,574.175],[215.316,303.45,227.216,574.919],[285.228,303.45,296.384,574.175],[355.884,304.194,366.297,574.919],[425.797,303.45,437.697,575.663],[495.709,302.706,506.866,574.919],[566.366,304.194,577.522,574.175],[636.278,303.45,646.691,573.431],[706.191,304.194,716.603,574.919]]
 code_areas = [[165.484,304.194,177.384,574.175],[235.397,303.45,246.553,574.175],[306.053,304.194,316.466,574.175],[375.222,303.45,387.866,574.919],[445.878,304.194,456.291,574.919],[516.534,303.45,526.947,575.663],[584.959,303.45,596.116,574.919],[656.359,304.194,666.772,574.919],[726.272,304.194,735.941,574.175]]
 gr_wt_areas = [[196.722,490.875,206.391,574.919],[266.634,490.131,277.047,574.175],[335.803,490.875,346.959,574.919],[405.716,489.388,417.616,574.175],[475.628,490.875,486.784,574.175],[545.541,490.875,557.441,574.919],[615.453,490.875,627.353,574.919],[686.109,490.875,697.266,574.175],[756.022,490.875,765.691,574.919]]
@@ -51,7 +54,7 @@ def read_despacho(path):
 
     all_items = [desc[0], commcode[0], gr_wgt[0], nt_wgt[0], values[0]]
 
-    dict_for_df = {'Description':modifier(desc[0]),'PTCode':modifier(commcode[0]),'Gross Weight (kg)':modifier(gr_wgt[0]),'Net Weight(kg)':modifier(nt_wgt[0]),'Value (EUR)':modifier(values[0])}
+    dict_for_df = {'Description':modifier(desc[0]),'PTCode':modifier(commcode[0]),'Gross Weight (kg)':modifier(gr_wgt[0]),'Net Weight (kg)':modifier(nt_wgt[0]),'Value (EUR)':modifier(values[0])}
 
     final = pd.DataFrame.from_dict(dict_for_df)
 
@@ -74,9 +77,19 @@ def read_one_page(path):
     final = pg1_df.transpose()
     return final
 
-def commcode_translate(dataframe):
-    dataframe['splitcode'] = 
 
+codes_df = pd.read_csv(codes_path, dtype=str)
+codes_df['join'] = codes_df['Items'] + codes_df['Codes'].transform(lambda x: x[:8])
+codes_df = codes_df.drop_duplicates()
+
+
+def commcode_translate(dataframe):
+    dataframe['join'] = dataframe['Description'] + dataframe['PTCode'].transform(lambda x: x.replace('.00.0000.0000.0000',''))
+    joined = pd.merge(final,codes_df, how='left', on='join',indicator=True)
+    joined = joined.replace(np.NaN, 'No Match Found', regex=True)
+    return joined
+
+writer = pd.ExcelWriter('{}/Packing Lists.xlsx'.format(folder_path), engine='xlsxwriter') 
 
 
 for x in paths_pdf:
@@ -86,4 +99,9 @@ for x in paths_pdf:
         final = read_despacho(x)
     else:
         final = read_one_page(x)
-    final.to_csv(str(x).replace('.pdf','.csv'))
+    joined = commcode_translate(final)
+    ftype = x.replace('.pdf','')
+    loc = ftype.rfind('\\')
+    sheet = ftype[loc+1:]
+    joined[['Description', 'Codes', 'Gross Weight (kg)' ,'Net Weight (kg)', 'Value (EUR)']].to_excel(writer, sheet_name=sheet)
+writer.save()
