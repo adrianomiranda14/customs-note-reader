@@ -27,7 +27,7 @@ def modifier(dffrompdf):
     dffrompdf = first_value
     return dffrompdf 
 
-folder_path = r'C:\Users\adria\Desktop\Miratoni\Imports\June\11-06-21\Despachos'
+folder_path = r'C:\Users\adria\Desktop\Miratoni\Imports\December\17-12-2021\Despachos'
 
 paths_pdf = folder(folder_path)
 codes_path = r"C:\Users\adria\Desktop\Miratoni\Imports\Import Database.csv"
@@ -78,7 +78,7 @@ def read_one_page(path):
     return final
 
 
-codes_df = pd.read_csv(codes_path, dtype=str)
+codes_df = pd.read_pickle('database_df.pkl')
 codes_df['join'] = codes_df['Items'] + codes_df['Codes'].transform(lambda x: x[:8])
 codes_df = codes_df.drop_duplicates()
 
@@ -86,7 +86,9 @@ codes_df = codes_df.drop_duplicates()
 def commcode_translate(dataframe):
     dataframe['join'] = dataframe['Description'] + dataframe['PTCode'].transform(lambda x: x.replace('.00.0000.0000.0000',''))
     joined = pd.merge(final,codes_df, how='left', on='join',indicator=True)
-    joined = joined.replace(np.NaN, 'No Match Found', regex=True)
+    #joined = joined.replace(np.NaN, 'No Match Found', regex=True)
+    #joined = joined.fillna(dataframe['PTCode'], inplace=True)
+    #joined = joined.replace(np.NaN, dataframe['PTCode'], regex=True)
     return joined
 
 writer = pd.ExcelWriter('{}/Packing Lists.xlsx'.format(folder_path), engine='xlsxwriter') 
@@ -103,5 +105,7 @@ for x in paths_pdf:
     ftype = x.replace('.pdf','')
     loc = ftype.rfind('\\')
     sheet = ftype[loc+1:]
-    joined[['Description', 'Codes', 'Gross Weight (kg)' ,'Net Weight (kg)', 'Value (EUR)']].to_excel(writer, sheet_name=sheet)
+    joined['Code'] = joined['Codes'].fillna(joined['PTCode'].transform(lambda x: x.replace('.00.0000.0000.0000','')))
+    print(joined)
+    joined[['Description', 'Code', 'Gross Weight (kg)' ,'Net Weight (kg)', 'Value (EUR)']].to_excel(writer, sheet_name=sheet, index=False)
 writer.save()
