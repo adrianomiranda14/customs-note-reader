@@ -27,7 +27,7 @@ def modifier(dffrompdf):
     dffrompdf = first_value
     return dffrompdf 
 
-folder_path = r'C:\Users\adria\Desktop\Miratoni\Imports\December\17-12-2021\Despachos'
+folder_path = r'C:\Users\adria\Desktop\Miratoni\Imports\2022\June\24-6-22\Despachos\Jesus e Curto'
 
 paths_pdf = folder(folder_path)
 codes_path = r"C:\Users\adria\Desktop\Miratoni\Imports\Import Database.csv"
@@ -93,6 +93,7 @@ def commcode_translate(dataframe):
 
 writer = pd.ExcelWriter('{}/Packing Lists.xlsx'.format(folder_path), engine='xlsxwriter') 
 
+missing_from_database = []
 
 for x in paths_pdf:
     pdf = PdfFileReader(open(x,'rb'))
@@ -108,4 +109,9 @@ for x in paths_pdf:
     joined['Code'] = joined['Codes'].fillna(joined['PTCode'].transform(lambda x: x.replace('.00.0000.0000.0000','')))
     print(joined)
     joined[['Description', 'Code', 'Gross Weight (kg)' ,'Net Weight (kg)', 'Value (EUR)']].to_excel(writer, sheet_name=sheet, index=False)
+    missing = joined[joined['_merge']=='left_only']
+    missing_from_database.append(missing)
 writer.save()
+
+missing_from_database_df = pd.concat(missing_from_database)
+missing_from_database_df.to_pickle('missing_df.pkl')
